@@ -14,8 +14,8 @@ class HouseholdSimulationGUI:
         self.indoor_temp = 24
         self.fan_speed = 0
         self.bulb_on = False
-        self.ac_speed = 0       # 0 = off, 1-3 speeds
-        self.heater_speed = 0   # 0 = off, 1-3 speeds
+        self.ac_temp = None        # None = off
+        self.heater_temp = None    # None = off
 
         # Create UI
         self.create_ui()
@@ -24,10 +24,8 @@ class HouseholdSimulationGUI:
         self.update_simulation()
 
     def create_ui(self):
-        # Title
         tk.Label(self.root, text="Smart Home HVAC System", font=("Arial", 18, "bold"), bg="#1e1e1e", fg="white").pack(pady=10)
 
-        # Temperature label
         self.temp_label = tk.Label(self.root, text="", font=("Arial", 14), bg="#1e1e1e", fg="white")
         self.temp_label.pack(pady=5)
 
@@ -46,35 +44,38 @@ class HouseholdSimulationGUI:
             self.fan_canvas.create_line(50, 50, 10, 50, fill="cyan", width=4),
         ]
 
-        # AC indicator
-        self.ac_canvas = tk.Canvas(self.root, width=120, height=50, bg="#1e1e1e", highlightthickness=0)
+        # AC
+        self.ac_canvas = tk.Canvas(self.root, width=150, height=50, bg="#1e1e1e", highlightthickness=0)
         self.ac_canvas.pack(pady=5)
-        self.ac_rect = self.ac_canvas.create_rectangle(10, 10, 110, 40, fill="gray")
-        self.ac_label = self.ac_canvas.create_text(60, 25, text="AC: OFF", fill="white", font=("Arial", 12, "bold"))
+        self.ac_rect = self.ac_canvas.create_rectangle(10, 10, 140, 40, fill="gray")
+        self.ac_label = self.ac_canvas.create_text(75, 25, text="AC: OFF", fill="white", font=("Arial", 12, "bold"))
 
-        # Heater indicator
-        self.heater_canvas = tk.Canvas(self.root, width=120, height=50, bg="#1e1e1e", highlightthickness=0)
+        # Heater
+        self.heater_canvas = tk.Canvas(self.root, width=150, height=50, bg="#1e1e1e", highlightthickness=0)
         self.heater_canvas.pack(pady=5)
-        self.heater_rect = self.heater_canvas.create_rectangle(10, 10, 110, 40, fill="gray")
-        self.heater_label = self.heater_canvas.create_text(60, 25, text="Heater: OFF", fill="white", font=("Arial", 12, "bold"))
+        self.heater_rect = self.heater_canvas.create_rectangle(10, 10, 140, 40, fill="gray")
+        self.heater_label = self.heater_canvas.create_text(75, 25, text="Heater: OFF", fill="white", font=("Arial", 12, "bold"))
 
-        # Status label
         self.status_label = tk.Label(self.root, text="", font=("Arial", 12), bg="#1e1e1e", fg="white")
         self.status_label.pack(pady=5)
 
-        # Control buttons
+        # Controls
         control_frame = tk.Frame(self.root, bg="#1e1e1e")
         control_frame.pack(pady=10)
 
         tk.Button(control_frame, text="Toggle Bulb", command=self.toggle_bulb).grid(row=0, column=0, padx=10)
         tk.Button(control_frame, text="Fan Speed +", command=self.increase_fan_speed).grid(row=0, column=1, padx=10)
         tk.Button(control_frame, text="Fan Off", command=self.fan_off).grid(row=0, column=2, padx=10)
-        tk.Button(control_frame, text="AC Speed +", command=self.increase_ac_speed).grid(row=1, column=0, padx=10, pady=5)
-        tk.Button(control_frame, text="AC Off", command=self.ac_off).grid(row=1, column=1, padx=10, pady=5)
-        tk.Button(control_frame, text="Heater Speed +", command=self.increase_heater_speed).grid(row=2, column=0, padx=10, pady=5)
-        tk.Button(control_frame, text="Heater Off", command=self.heater_off).grid(row=2, column=1, padx=10, pady=5)
 
-    # --- Control functions ---
+        tk.Button(control_frame, text="AC Temp ↓", command=self.decrease_ac_temp).grid(row=1, column=0, padx=10, pady=5)
+        tk.Button(control_frame, text="AC Temp ↑", command=self.increase_ac_temp).grid(row=1, column=1, padx=10, pady=5)
+        tk.Button(control_frame, text="AC Off", command=self.ac_off).grid(row=1, column=2, padx=10, pady=5)
+
+        tk.Button(control_frame, text="Heater Temp ↑", command=self.increase_heater_temp).grid(row=2, column=0, padx=10, pady=5)
+        tk.Button(control_frame, text="Heater Temp ↓", command=self.decrease_heater_temp).grid(row=2, column=1, padx=10, pady=5)
+        tk.Button(control_frame, text="Heater Off", command=self.heater_off).grid(row=2, column=2, padx=10, pady=5)
+
+    # Bulb and Fan
     def toggle_bulb(self):
         self.bulb_on = not self.bulb_on
         self.bulb_canvas.itemconfig(self.bulb_circle, fill="yellow" if self.bulb_on else "gray")
@@ -87,57 +88,82 @@ class HouseholdSimulationGUI:
         self.fan_speed = 0
         self.status_label.config(text="Fan Off")
 
-    def increase_ac_speed(self):
-        self.ac_speed = (self.ac_speed + 1) % 4
+    # AC Controls
+    def decrease_ac_temp(self):
+        if self.ac_temp is None:
+            self.ac_temp = 30
+        elif self.ac_temp > 18:
+            self.ac_temp -= 1
+        self.update_ac_indicator()
+
+    def increase_ac_temp(self):
+        if self.ac_temp is not None and self.ac_temp < 30:
+            self.ac_temp += 1
         self.update_ac_indicator()
 
     def ac_off(self):
-        self.ac_speed = 0
+        self.ac_temp = None
         self.update_ac_indicator()
 
-    def increase_heater_speed(self):
-        self.heater_speed = (self.heater_speed + 1) % 4
+    # Heater Controls
+    def increase_heater_temp(self):
+        if self.heater_temp is None:
+            self.heater_temp = 18
+        elif self.heater_temp < 30:
+            self.heater_temp += 1
+        self.update_heater_indicator()
+
+    def decrease_heater_temp(self):
+        if self.heater_temp is not None and self.heater_temp > 18:
+            self.heater_temp -= 1
         self.update_heater_indicator()
 
     def heater_off(self):
-        self.heater_speed = 0
+        self.heater_temp = None
         self.update_heater_indicator()
 
-    # --- Update indicators ---
+    # Indicators
     def update_ac_indicator(self):
-        color = "cyan" if self.ac_speed > 0 else "gray"
+        if self.ac_temp is None:
+            color, text = "gray", "AC: OFF"
+        else:
+            color, text = "cyan", f"AC: {self.ac_temp}°C"
         self.ac_canvas.itemconfig(self.ac_rect, fill=color)
-        self.ac_canvas.itemconfig(self.ac_label, text=f"AC: {self.ac_speed}")
+        self.ac_canvas.itemconfig(self.ac_label, text=text)
 
     def update_heater_indicator(self):
-        color = "orange" if self.heater_speed > 0 else "gray"
+        if self.heater_temp is None:
+            color, text = "gray", "Heater: OFF"
+        else:
+            color, text = "orange", f"Heater: {self.heater_temp}°C"
         self.heater_canvas.itemconfig(self.heater_rect, fill=color)
-        self.heater_canvas.itemconfig(self.heater_label, text=f"Heater: {self.heater_speed}")
+        self.heater_canvas.itemconfig(self.heater_label, text=text)
 
-    # --- Simulation update ---
+    # Simulation loop
     def update_simulation(self):
-        # Simulate outdoor temp
-        self.outdoor_temp += random.uniform(-0.2, 0.2)
+        self.outdoor_temp += random.uniform(-0.1, 0.1)
 
-        # Update indoor temp based on appliance speeds
-        self.indoor_temp += -0.1 * self.ac_speed + 0.1 * self.heater_speed
-        self.indoor_temp += 0.02 * (self.outdoor_temp - self.indoor_temp)
+        # Adjust indoor temp based on AC/Heater
+        if self.ac_temp is not None:
+            diff = (self.ac_temp - self.indoor_temp) * 0.05
+            self.indoor_temp += diff
+        elif self.heater_temp is not None:
+            diff = (self.heater_temp - self.indoor_temp) * 0.05
+            self.indoor_temp += diff
+        else:
+            # Drift toward outdoor temp
+            self.indoor_temp += 0.01 * (self.outdoor_temp - self.indoor_temp)
 
-        # Rotate fan
+        # Fan animation
         if self.fan_speed > 0:
             self.rotate_fan(5 * self.fan_speed)
 
-        # Update labels
         self.temp_label.config(
-            text=f"Indoor Temp: {self.indoor_temp:.1f}°C   |   Outdoor Temp: {self.outdoor_temp:.1f}°C"
+            text=f"Indoor: {self.indoor_temp:.1f}°C   |   Outdoor: {self.outdoor_temp:.1f}°C"
         )
-
-        self.update_ac_indicator()
-        self.update_heater_indicator()
 
         self.root.after(100, self.update_simulation)
 
-    # --- Fan rotation ---
     def rotate_fan(self, angle):
         center = (50, 50)
         for blade in self.fan_blades:
