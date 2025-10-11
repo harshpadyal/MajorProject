@@ -91,38 +91,56 @@ class HouseholdSimulationGUI:
     # ---------------------------- Room Visuals ----------------------------
     def draw_room_visuals(self, canvas, room):
         visuals = {}
-        x, y = 50, 50
+        width = int(canvas["width"])
+        height = int(canvas["height"])
 
+        # Center coordinates for fan placement
+        center_x = width // 2
+        center_y = height // 2
+
+        # Lights
         if "lights" in self.rooms[room]:
             visuals["lights"] = []
             for i in range(len(self.rooms[room]["lights"])):
-                bulb = canvas.create_oval(x + i * 50, y, x + 30 + i * 50, y + 30, fill="gray")
+                bulb_x = center_x - 50 + i * 50  # lights to the left of center
+                bulb = canvas.create_oval(bulb_x, 30, bulb_x + 30, 60, fill="gray")
                 visuals["lights"].append(bulb)
         elif "light" in self.rooms[room]:
-            visuals["light"] = canvas.create_oval(x, y, x + 30, y + 30, fill="gray")
+            visuals["light"] = canvas.create_oval(center_x - 15, 30, center_x + 15, 60, fill="gray")
 
+        # Fans
         if "fans" in self.rooms[room]:
             visuals["fans"] = []
-            for i in range(len(self.rooms[room]["fans"])):
-                fan = self.create_fan(canvas, x + 150 + i * 70, y + 40)
+            num_fans = len(self.rooms[room]["fans"])
+            for i in range(num_fans):
+                offset = (i - (num_fans - 1)/2) * 60  # spread around center
+                fan = self.create_fan(canvas, center_x + offset, center_y)
                 visuals["fans"].append(fan)
         elif "fan" in self.rooms[room]:
-            visuals["fan"] = self.create_fan(canvas, x + 150, y + 40)
+            visuals["fan"] = self.create_fan(canvas, center_x, center_y)
 
+        # AC
         if "ac" in self.rooms[room]:
-            visuals["ac"] = canvas.create_rectangle(300, y, 370, y + 30, fill="gray")
-            visuals["ac_text"] = canvas.create_text(335, y + 15, text="", fill="blue", font=("Arial", 10, "bold"))
+            visuals["ac"] = canvas.create_rectangle(center_x + 100, 30, center_x + 170, 60, fill="gray")
+            visuals["ac_text"] = canvas.create_text(center_x + 135, 45, text="", fill="blue", font=("Arial", 10, "bold"))
 
+        # Heater
         if "heater" in self.rooms[room]:
-            visuals["heater"] = canvas.create_rectangle(380, y, 450, y + 30, fill="gray")
-            visuals["heater_text"] = canvas.create_text(415, y + 15, text="", fill="red", font=("Arial", 10, "bold"))
+            visuals["heater"] = canvas.create_rectangle(center_x + 180, 30, center_x + 250, 60, fill="gray")
+            visuals["heater_text"] = canvas.create_text(center_x + 215, 45, text="", fill="red", font=("Arial", 10, "bold"))
 
+        # Geezer
         if "geezer" in self.rooms[room]:
-            visuals["geezer"] = canvas.create_rectangle(300, y, 360, y + 30, fill="gray")
+            visuals["geezer"] = canvas.create_rectangle(center_x + 100, 30, center_x + 160, 60, fill="gray")
 
+        # TV
         if "tv" in self.rooms[room]:
-            visuals["tv"] = canvas.create_rectangle(200, 100, 280, 150, fill="gray")
-            visuals["tv_text"] = canvas.create_text(240, 125, text="OFF", fill="white", font=("Arial", 10, "bold"))
+            tv_x1 = center_x - 40
+            tv_y1 = center_y + 60
+            tv_x2 = center_x + 40
+            tv_y2 = center_y + 110
+            visuals["tv"] = canvas.create_rectangle(tv_x1, tv_y1, tv_x2, tv_y2, fill="gray")
+            visuals["tv_text"] = canvas.create_text(center_x, center_y + 85, text="OFF", fill="white", font=("Arial", 10, "bold"))
 
         canvas.create_text(60, 10, text=room, fill="white", font=("Arial", 14, "bold"))
         return visuals
