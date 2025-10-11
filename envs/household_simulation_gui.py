@@ -61,7 +61,6 @@ class HouseholdSimulationGUI:
         canvas_main.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Use scrollable frame as layout
         layout = tk.Frame(scrollable_frame, bg="#1e1e1e")
         layout.pack()
 
@@ -77,7 +76,7 @@ class HouseholdSimulationGUI:
         ]
 
         for room, r, c in grid:
-            height = 420 if room == "Hall" else 260  # Increased Hall size
+            height = 420 if room == "Hall" else 260
             canvas = tk.Canvas(
                 layout, width=550, height=height, bg="#2b2b2b",
                 highlightthickness=2, highlightbackground="white"
@@ -112,8 +111,12 @@ class HouseholdSimulationGUI:
 
         if "ac" in self.rooms[room]:
             visuals["ac"] = canvas.create_rectangle(300, y, 370, y + 30, fill="gray")
+            visuals["ac_text"] = canvas.create_text(335, y + 15, text="", fill="blue", font=("Arial", 10, "bold"))
+
         if "heater" in self.rooms[room]:
             visuals["heater"] = canvas.create_rectangle(380, y, 450, y + 30, fill="gray")
+            visuals["heater_text"] = canvas.create_text(415, y + 15, text="", fill="red", font=("Arial", 10, "bold"))
+
         if "geezer" in self.rooms[room]:
             visuals["geezer"] = canvas.create_rectangle(300, y, 360, y + 30, fill="gray")
 
@@ -232,8 +235,14 @@ class HouseholdSimulationGUI:
 
         if "ac" in r:
             c.itemconfig(v["ac"], fill="cyan" if r["ac"] is not None else "gray")
+            if "ac_text" in v:
+                c.itemconfig(v["ac_text"], text=str(r["ac"]) if r["ac"] is not None else "")
+
         if "heater" in r:
             c.itemconfig(v["heater"], fill="orange" if r["heater"] is not None else "gray")
+            if "heater_text" in v:
+                c.itemconfig(v["heater_text"], text=str(r["heater"]) if r["heater"] is not None else "")
+
         if "tv" in r and "tv" in v:
             c.itemconfig(v["tv"], fill="green" if r["tv"] else "gray")
             if "tv_text" in v:
