@@ -171,6 +171,8 @@ class HouseholdSimulationGUI:
             tk.Button(frame, text="Heater ↑", command=lambda: self.change_temp(r, room, "heater", +1)).grid(row=2, column=0, padx=3)
             tk.Button(frame, text="Heater ↓", command=lambda: self.change_temp(r, room, "heater", -1)).grid(row=2, column=1, padx=3)
             tk.Button(frame, text="Heater Off", command=lambda: self.turn_off(r, room, "heater")).grid(row=2, column=2, padx=3)
+        if "geezer" in r:
+            tk.Button(frame, text="Toggle Geezer", command=lambda: self.toggle_geezer(r, room)).grid(row=3, column=0, padx=3)
 
     # ---------------------------- Device Logic ----------------------------
     def toggle_single_light(self, devices, room, idx):
@@ -213,6 +215,13 @@ class HouseholdSimulationGUI:
         devices["tv"] = not devices["tv"]
         self.update_visuals(room)
 
+    def toggle_geezer(self, devices, room):
+        if devices["geezer"] is None:
+            devices["geezer"] = 60  # default temperature
+        else:
+            devices["geezer"] = None
+        self.update_visuals(room)
+
     # ---------------------------- Visual Update ----------------------------
     def update_visuals(self, room):
         r = self.rooms[room]
@@ -248,6 +257,9 @@ class HouseholdSimulationGUI:
             if "tv_text" in v:
                 c.itemconfig(v["tv_text"], text="ON" if r["tv"] else "OFF")
 
+        if "geezer" in r and "geezer" in v:
+            c.itemconfig(v["geezer"], fill="orange" if r["geezer"] is not None else "gray")
+
     def rotate_fan(self, canvas, fan, angle):
         cx, cy = fan["center"]
         for blade in fan["blades"]:
@@ -272,11 +284,11 @@ class HouseholdSimulationGUI:
             # AC effect
             if "ac" in devices and devices["ac"] is not None:
                 self.indoor_temp += (devices["ac"] - self.indoor_temp) * 0.02
-            
+
             # Heater effect
             if "heater" in devices and devices["heater"] is not None:
                 self.indoor_temp += (devices["heater"] - self.indoor_temp) * 0.02
-            
+
             # Fan effect (small cooling effect)
             if "fans" in devices:
                 total_speed = sum(devices["fans"])
