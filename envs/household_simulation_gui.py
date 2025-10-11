@@ -269,10 +269,24 @@ class HouseholdSimulationGUI:
         self.outdoor_temp += random.uniform(-0.1, 0.1)
 
         for room, devices in self.rooms.items():
+            # AC effect
             if "ac" in devices and devices["ac"] is not None:
                 self.indoor_temp += (devices["ac"] - self.indoor_temp) * 0.02
+            
+            # Heater effect
             if "heater" in devices and devices["heater"] is not None:
                 self.indoor_temp += (devices["heater"] - self.indoor_temp) * 0.02
+            
+            # Fan effect (small cooling effect)
+            if "fans" in devices:
+                total_speed = sum(devices["fans"])
+                if total_speed > 0:
+                    self.indoor_temp -= 0.05 * total_speed
+            elif "fan" in devices and devices["fan"] > 0:
+                self.indoor_temp -= 0.05 * devices["fan"]
+
+        # Clamp indoor temperature
+        self.indoor_temp = max(15, min(35, self.indoor_temp))
 
         self.temp_label.config(
             text=f"Indoor: {self.indoor_temp:.1f}°C | Outdoor: {self.outdoor_temp:.1f}°C"
