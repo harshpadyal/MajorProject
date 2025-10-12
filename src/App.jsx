@@ -19,26 +19,70 @@ const powerRatings = {
   geezer: 1500
 };
 
+// API keys
+const EM_API_KEY = "2cydsXA6q2R9UUTgj9nx"; // ElectricityMaps
+const VC_API_KEY = "6CUK6MHKK9V693T3CZ65Z89BJ"; // Visual Crossing
+const LOCATION = "Mumbai,IN"; // Change to your city
+
 function App() {
   const [rooms, setRooms] = useState(initialRooms);
   const [indoorTemp, setIndoorTemp] = useState(25);
   const [outdoorTemp, setOutdoorTemp] = useState(30);
   const [totalLoad, setTotalLoad] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const ratePerKWh = 6; // ₹6 per kWh
+  const [tariff, setTariff] = useState(6); // fallback ₹6/kWh if API fails
+
+  // Fetch electricity tariff from ElectricityMaps API
+  useEffect(() => {
+    const fetchTariff = async () => {
+      try {
+        const response = await fetch(
+          "https://api.electricitymap.org/v3/carbon-intensity/latest?zone=IN",
+          { headers: { "auth-token": EM_API_KEY } }
+        );
+        const data = await response.json();
+        if (data?.carbonIntensity) {
+          const dynamicTariff = (data.carbonIntensity * 0.01).toFixed(2);
+          setTariff(Number(dynamicTariff));
+        }
+      } catch (err) {
+        console.error("Failed to fetch tariff:", err);
+      }
+    };
+    fetchTariff();
+    const interval = setInterval(fetchTariff, 60000); // update every 1 min
+    return () => clearInterval(interval);
+  }, []);
 
   // Real-time clock updater
   useEffect(() => {
-    const timeInterval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+    const timeInterval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timeInterval);
   }, []);
 
-  // Temperature simulation
+  // Fetch outdoor temperature from Visual Crossing API
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        const response = await fetch(
+          `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${LOCATION}/today?unitGroup=metric&key=${VC_API_KEY}&include=current`
+        );
+        const data = await response.json();
+        if (data?.currentConditions?.temp) {
+          setOutdoorTemp(data.currentConditions.temp);
+        }
+      } catch (err) {
+        console.error("Failed to fetch outdoor temperature:", err);
+      }
+    };
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 600000); // update every 10 min
+    return () => clearInterval(interval);
+  }, []);
+
+  // Indoor temperature simulation
   useEffect(() => {
     const interval = setInterval(() => {
-      setOutdoorTemp(prev => prev + (Math.random() * 0.2 - 0.1));
       let newIndoor = indoorTemp;
       Object.values(rooms).forEach(r => {
         if (r.ac) newIndoor += (r.ac - newIndoor) * 0.02;
@@ -57,28 +101,21 @@ function App() {
   useEffect(() => {
     let total = 0;
     Object.values(rooms).forEach(room => {
-      if (room.lights)
-        total += room.lights.filter(Boolean).length * powerRatings.light;
-      if (room.light)
-        total += room.light ? powerRatings.light : 0;
+      if (room.lights) total += room.lights.filter(Boolean).length * powerRatings.light;
+      if (room.light) total += room.light ? powerRatings.light : 0;
 
-      if (room.fans)
-        total += room.fans.reduce((sum, s) => sum + s * powerRatings.fanSpeed, 0);
-      if (room.fan)
-        total += room.fan * powerRatings.fanSpeed;
+      if (room.fans) total += room.fans.reduce((sum, s) => sum + s * powerRatings.fanSpeed, 0);
+      if (room.fan) total += room.fan * powerRatings.fanSpeed;
 
-      if (room.ac)
-        total += powerRatings.ac;
-      if (room.heater)
-        total += powerRatings.heater;
-      if (room.tv)
-        total += powerRatings.tv;
-      if (room.geezer)
-        total += powerRatings.geezer;
+      if (room.ac) total += powerRatings.ac;
+      if (room.heater) total += powerRatings.heater;
+      if (room.tv) total += powerRatings.tv;
+      if (room.geezer) total += powerRatings.geezer;
     });
     setTotalLoad(total);
   }, [rooms]);
 
+  // Device control functions
   const toggleLight = (roomName, idx = null) => {
     setRooms(prev => {
       const room = { ...prev[roomName] };
@@ -117,23 +154,15 @@ function App() {
     });
   };
 
-  const turnOff = (roomName, key) => {
-    setRooms(prev => ({ ...prev, [roomName]: { ...prev[roomName], [key]: null } }));
-  };
-
-  const toggleTV = (roomName) => {
-    setRooms(prev => ({ ...prev, [roomName]: { ...prev[roomName], tv: !prev[roomName].tv } }));
-  };
-
-  const toggleGeezer = (roomName) => {
-    setRooms(prev => ({
-      ...prev,
-      [roomName]: { ...prev[roomName], geezer: prev[roomName].geezer ? null : 60 }
-    }));
-  };
+  const turnOff = (roomName, key) => setRooms(prev => ({ ...prev, [roomName]: { ...prev[roomName], [key]: null } }));
+  const toggleTV = (roomName) => setRooms(prev => ({ ...prev, [roomName]: { ...prev[roomName], tv: !prev[roomName].tv } }));
+  const toggleGeezer = (roomName) => setRooms(prev => ({
+    ...prev,
+    [roomName]: { ...prev[roomName], geezer: prev[roomName].geezer ? null : 60 }
+  }));
 
   const totalKW = (totalLoad / 1000).toFixed(2);
-  const costPerHour = (totalKW * ratePerKWh).toFixed(2);
+  const costPerHour = (totalKW * tariff).toFixed(2);
   const formattedTime = currentTime.toLocaleTimeString();
 
   return (
@@ -145,7 +174,7 @@ function App() {
       </p>
 
       <h3>
-        ⚡ Total Load: {totalLoad} W ({totalKW} kW) | 💰 Cost per hour: ₹{costPerHour}
+        ⚡ Total Load: {totalLoad} W ({totalKW} kW) | 💰 Cost per hour: ₹{costPerHour} | 🪙 Tariff: ₹{tariff}/kWh
       </h3>
 
       <div className="grid-container">
@@ -167,6 +196,7 @@ function App() {
   );
 }
 
+// Room component
 function Room({ name, devices, toggleLight, changeFan, changeTemp, turnOff, toggleTV, toggleGeezer }) {
   return (
     <div className="room">
@@ -237,6 +267,7 @@ function Room({ name, devices, toggleLight, changeFan, changeTemp, turnOff, togg
   );
 }
 
+// Fan SVG
 function SVGFan({ speed }) {
   return (
     <svg className={`fan-svg fan-speed-${speed}`} width="50" height="50" viewBox="0 0 50 50">
