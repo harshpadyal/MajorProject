@@ -9,12 +9,24 @@ const initialRooms = {
   Toilet: { light: false }
 };
 
+// Power ratings in watts
+const powerRatings = {
+  light: 15,
+  fanSpeed: 40,
+  ac: 1500,
+  heater: 2000,
+  tv: 100,
+  geezer: 1500
+};
+
 function App() {
   const [rooms, setRooms] = useState(initialRooms);
   const [indoorTemp, setIndoorTemp] = useState(25);
   const [outdoorTemp, setOutdoorTemp] = useState(30);
+  const [totalLoad, setTotalLoad] = useState(0);
+  const ratePerKWh = 6; // ₹6 per kWh
 
-  // Simulation loop
+  // Temperature simulation
   useEffect(() => {
     const interval = setInterval(() => {
       setOutdoorTemp(prev => prev + (Math.random() * 0.2 - 0.1));
@@ -32,7 +44,32 @@ function App() {
     return () => clearInterval(interval);
   }, [rooms, indoorTemp]);
 
-  // Toggle light
+  // Calculate load dynamically
+  useEffect(() => {
+    let total = 0;
+    Object.values(rooms).forEach(room => {
+      if (room.lights)
+        total += room.lights.filter(Boolean).length * powerRatings.light;
+      if (room.light)
+        total += room.light ? powerRatings.light : 0;
+
+      if (room.fans)
+        total += room.fans.reduce((sum, s) => sum + s * powerRatings.fanSpeed, 0);
+      if (room.fan)
+        total += room.fan * powerRatings.fanSpeed;
+
+      if (room.ac)
+        total += powerRatings.ac;
+      if (room.heater)
+        total += powerRatings.heater;
+      if (room.tv)
+        total += powerRatings.tv;
+      if (room.geezer)
+        total += powerRatings.geezer;
+    });
+    setTotalLoad(total);
+  }, [rooms]);
+
   const toggleLight = (roomName, idx = null) => {
     setRooms(prev => {
       const room = { ...prev[roomName] };
@@ -46,7 +83,6 @@ function App() {
     });
   };
 
-  // Change fan speed
   const changeFan = (roomName, idx = null, delta = 1) => {
     setRooms(prev => {
       const room = { ...prev[roomName] };
@@ -60,7 +96,6 @@ function App() {
     });
   };
 
-  // Change AC / Heater temperature
   const changeTemp = (roomName, key, delta) => {
     setRooms(prev => {
       const room = { ...prev[roomName] };
@@ -73,34 +108,34 @@ function App() {
     });
   };
 
-  // Turn off AC / Heater
   const turnOff = (roomName, key) => {
-    setRooms(prev => {
-      const room = { ...prev[roomName], [key]: null };
-      return { ...prev, [roomName]: room };
-    });
+    setRooms(prev => ({ ...prev, [roomName]: { ...prev[roomName], [key]: null } }));
   };
 
-  // Toggle TV
   const toggleTV = (roomName) => {
-    setRooms(prev => {
-      const room = { ...prev[roomName], tv: !prev[roomName].tv };
-      return { ...prev, [roomName]: room };
-    });
+    setRooms(prev => ({ ...prev, [roomName]: { ...prev[roomName], tv: !prev[roomName].tv } }));
   };
 
-  // Toggle Geezer
   const toggleGeezer = (roomName) => {
-    setRooms(prev => {
-      const room = { ...prev[roomName], geezer: prev[roomName].geezer ? null : 60 };
-      return { ...prev, [roomName]: room };
-    });
+    setRooms(prev => ({
+      ...prev,
+      [roomName]: { ...prev[roomName], geezer: prev[roomName].geezer ? null : 60 }
+    }));
   };
+
+  const totalKW = (totalLoad / 1000).toFixed(2);
+  const costPerHour = (totalKW * ratePerKWh).toFixed(2);
 
   return (
     <div className="App">
       <h1>🏠 1BHK Smart Home Simulation</h1>
-      <p>Indoor: {indoorTemp.toFixed(1)}°C | Outdoor: {outdoorTemp.toFixed(1)}°C</p>
+      <p>
+        Indoor: {indoorTemp.toFixed(1)}°C | Outdoor: {outdoorTemp.toFixed(1)}°C
+      </p>
+      <h3>
+        ⚡ Total Load: {totalLoad} W ({totalKW} kW) | 💰 Cost per hour: ₹{costPerHour}
+      </h3>
+
       <div className="grid-container">
         {Object.entries(rooms).map(([name, devices]) => (
           <Room
@@ -125,7 +160,6 @@ function Room({ name, devices, toggleLight, changeFan, changeTemp, turnOff, togg
     <div className="room">
       <h2>{name}</h2>
       <div className="devices">
-        {/* Lights */}
         {devices.lights?.map((on, idx) => (
           <div key={idx} className="device-box">
             <div>Light {idx + 1}: {on ? "ON" : "OFF"}</div>
@@ -141,7 +175,6 @@ function Room({ name, devices, toggleLight, changeFan, changeTemp, turnOff, togg
           </div>
         )}
 
-        {/* Fans */}
         {devices.fans?.map((speed, idx) => (
           <div key={idx} className="fan-container">
             <SVGFan speed={speed} />
@@ -157,7 +190,6 @@ function Room({ name, devices, toggleLight, changeFan, changeTemp, turnOff, togg
           </div>
         )}
 
-        {/* AC & Heater */}
         {devices.ac !== undefined && (
           <div className="device-box ac">
             <div>AC: {devices.ac ?? "Off"}</div>
@@ -175,7 +207,6 @@ function Room({ name, devices, toggleLight, changeFan, changeTemp, turnOff, togg
           </div>
         )}
 
-        {/* TV */}
         {devices.tv !== undefined && (
           <div className={`device-box tv ${devices.tv ? "on" : "off"}`}>
             <div>TV: {devices.tv ? "ON" : "OFF"}</div>
@@ -183,7 +214,6 @@ function Room({ name, devices, toggleLight, changeFan, changeTemp, turnOff, togg
           </div>
         )}
 
-        {/* Geezer */}
         {devices.geezer !== undefined && (
           <div className={`device-box geezer ${devices.geezer ? "on" : "off"}`}>
             <div>Geezer: {devices.geezer ? "ON" : "OFF"}</div>
@@ -197,12 +227,7 @@ function Room({ name, devices, toggleLight, changeFan, changeTemp, turnOff, togg
 
 function SVGFan({ speed }) {
   return (
-    <svg
-      className={`fan-svg fan-speed-${speed}`}
-      width="50"
-      height="50"
-      viewBox="0 0 50 50"
-    >
+    <svg className={`fan-svg fan-speed-${speed}`} width="50" height="50" viewBox="0 0 50 50">
       <circle cx="25" cy="25" r="5" fill="cyan" />
       <line x1="25" y1="25" x2="25" y2="5" stroke="cyan" strokeWidth="3" />
       <line x1="25" y1="25" x2="45" y2="25" stroke="cyan" strokeWidth="3" />
