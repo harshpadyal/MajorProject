@@ -107,3 +107,11 @@ h1, p {
 .device-box.geezer { border: 1px solid orange; }
 
 button { cursor: pointer; padding: 3px 8px; border-radius: 4px; }
+
+.status-bar {
+  text-align: center;
+  font-size: 1.1rem;
+  margin-bottom: 5px;
+  color: #00e6e6;
+}
+

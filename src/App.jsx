@@ -24,7 +24,16 @@ function App() {
   const [indoorTemp, setIndoorTemp] = useState(25);
   const [outdoorTemp, setOutdoorTemp] = useState(30);
   const [totalLoad, setTotalLoad] = useState(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const ratePerKWh = 6; // ₹6 per kWh
+
+  // Real-time clock updater
+  useEffect(() => {
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timeInterval);
+  }, []);
 
   // Temperature simulation
   useEffect(() => {
@@ -125,13 +134,16 @@ function App() {
 
   const totalKW = (totalLoad / 1000).toFixed(2);
   const costPerHour = (totalKW * ratePerKWh).toFixed(2);
+  const formattedTime = currentTime.toLocaleTimeString();
 
   return (
     <div className="App">
       <h1>🏠 1BHK Smart Home Simulation</h1>
-      <p>
-        Indoor: {indoorTemp.toFixed(1)}°C | Outdoor: {outdoorTemp.toFixed(1)}°C
+
+      <p className="status-bar">
+        🕒 {formattedTime} | 🌡 Indoor: {indoorTemp.toFixed(1)}°C | ☀️ Outdoor: {outdoorTemp.toFixed(1)}°C
       </p>
+
       <h3>
         ⚡ Total Load: {totalLoad} W ({totalKW} kW) | 💰 Cost per hour: ₹{costPerHour}
       </h3>
