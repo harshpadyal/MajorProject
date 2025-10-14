@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./App.css";
-
+import toast, { Toaster } from "react-hot-toast"; // 👈 install: npm i react-hot-toast
 const initialRooms = {
   Hall: { lights: [false, false], fans: [0, 0], ac: null, heater: null, tv: false },
   Bedroom: { light: false, fan: 0, ac: null, heater: null },
@@ -31,6 +31,18 @@ function App() {
   const [totalLoad, setTotalLoad] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [tariff, setTariff] = useState(6); // fallback ₹6/kWh if API fails
+  const applyAIActions = (actions) => {
+    setRooms((prev) => {
+      const updated = { ...prev };
+      for (const [appliance, action] of Object.entries(actions)) {
+        const [roomName, device] = appliance.split("_"); // e.g. Hall_AC
+        if (updated[roomName] && device in updated[roomName]) {
+          updated[roomName][device] = action === "ON" ? true : false;
+        }
+      }
+      return updated;
+    });
+  };
 
   // Fetch electricity tariff from ElectricityMaps API
   useEffect(() => {
@@ -115,6 +127,80 @@ function App() {
     setTotalLoad(total);
   }, [rooms]);
 
+  // 🔹 Send data to AI Agent every 30 seconds
+  useEffect(() => {
+    const sendToAgent = async () => {
+      try {
+        const payload = {
+          weather: { temperature: outdoorTemp, humidity: 60 },
+          electricity: { pricePerUnit: tariff, demandLevel: totalLoad > 2000 ? "HIGH" : "NORMAL" },
+          current: { indoorTemp, totalLoad, time: new Date().toISOString() },
+        };
+
+        const response = await fetch("http://localhost:5000/api/agent/simulate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.actions) {
+          const actions = data.actions;
+          const actionSummary = Object.entries(actions)
+            .map(([key, val]) => `${key}: ${val}`)
+            .join(", ");
+
+          toast(
+            (t) => (
+              <div>
+                <strong>⚡ AI Suggestion</strong>
+                <p>{actionSummary}</p>
+                <div style={{ marginTop: "5px", display: "flex", gap: "8px" }}>
+                  <button
+                    onClick={() => {
+                      applyAIActions(actions);
+                      toast.dismiss(t.id);
+                      toast.success("✅ AI actions applied");
+                    }}
+                    style={{
+                      background: "#22c55e",
+                      color: "white",
+                      border: "none",
+                      padding: "5px 10px",
+                      borderRadius: "5px",
+                    }}
+                  >
+                    Apply
+                  </button>
+                  <button
+                    onClick={() => toast.dismiss(t.id)}
+                    style={{
+                      background: "#ef4444",
+                      color: "white",
+                      border: "none",
+                      padding: "5px 10px",
+                      borderRadius: "5px",
+                    }}
+                  >
+                    Ignore
+                  </button>
+                </div>
+              </div>
+            ),
+            { duration: 10000 }
+          );
+        }
+      } catch (err) {
+        console.error("Error sending to AI Agent:", err);
+      }
+    };
+
+    const interval = setInterval(sendToAgent, 30000);
+    return () => clearInterval(interval);
+  }, [outdoorTemp, tariff, totalLoad, indoorTemp]);
+
+
   // Device control functions
   const toggleLight = (roomName, idx = null) => {
     setRooms(prev => {
@@ -167,6 +253,7 @@ function App() {
 
   return (
     <div className="App">
+      <Toaster position="top-right" reverseOrder={false} />
       <h1>🏠 1BHK Smart Home Simulation</h1>
 
       <p className="status-bar">
